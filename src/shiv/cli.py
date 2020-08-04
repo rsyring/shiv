@@ -160,6 +160,14 @@ def copytree(src: Path, dst: Path) -> None:
         """It's recommended to use Python's "--check-hash-based-pycs always" option with this feature."""
     ),
 )
+@click.option(
+    "--preamble",
+    type=click.Path(exists=True),
+    help=(
+        "Provide a path to a preamble script that is invoked by shiv's runtime after bootstrapping the environment, "
+        "but before invoking your entry point."
+    ),
+)
 @click.argument("pip_args", nargs=-1, type=click.UNPROCESSED)
 def main(
     output_file: str,
@@ -172,6 +180,7 @@ def main(
     extend_pythonpath: bool,
     reproducible: bool,
     no_modify: bool,
+    preamble: Optional[str],
     pip_args: List[str],
 ) -> None:
     """
@@ -209,6 +218,11 @@ def main(
             pip.install(["--target", tmp_site_packages] + list(pip_args))
             sources.append(Path(tmp_site_packages).absolute())
 
+        if preamble:
+            bin_dir = Path(tmp_site_packages, "bin")
+            bin_dir.mkdir(exist_ok=True)
+            shutil.copy(Path(preamble).absolute(), bin_dir / Path(preamble).name)
+
         if no_modify:
             # if no_modify is specified, we need to build a map of source files and their
             # sha256 hashes, to be checked at runtime:
@@ -242,6 +256,7 @@ def main(
             shiv_version=__version__,
             no_modify=no_modify,
             reproducible=reproducible,
+            preamble=Path(preamble).name if preamble else None,
         )
 
         if no_modify:

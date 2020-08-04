@@ -139,6 +139,43 @@ variable. It is not needed for most applications, but if an application calls Py
 subprocess, expecting to be able to import the modules bundled in the zipapp, this will allow it
 to do so successfully.
 
+Preamble
+^^^^^^^^
+
+As an application packager, you may want to run some sanity checks or clean up tasks when users execute
+a pyz. For such a use case, ``shiv`` provides a ``--preamble`` argument. Any executable script provided will be packed
+into the resulting zipapp and executed during bootstrapping. If the preamble file is written in Python (e.g. ends in ``.py``) then
+the global & local variables from the ``shiv`` :ref:`bootstrapping module <api:bootstrap>` will be injected, giving script authors access to the Environment objects, etc.
+
+For an example, a preamble file that cleans up prior extracted ``~/.shiv`` directories might look like::
+
+    #!/usr/bin/env python3
+
+    import shutil
+
+    from pathlib import Path
+
+    # variable injected from shiv.bootstrap
+    site_packages: Path
+
+    current = site_packages.parent
+    cache_path = current.parent
+    name, build_id = current.name.split('_')
+
+    if __name__ == "__main__":
+        for path in cache_path.iterdir():
+            if path.name.startswith(f"{name}_") and not path.name.endswith(build_id):
+                shutil.rmtree(path)
+
+Reproducibility
+^^^^^^^^^^^^^^^
+
+``shiv`` supports the ability to create reproducible artifacts. By using the ``--reproducible`` command line option or
+by setting the ``SOURCE_DATE_EPOCH`` environment variable during zipapp creation. When this option is selected, if the
+inputs do not change, the output should be idempotent.
+
+For more information, see https://reproducible-builds.org/.
+
 Table of Contents
 =================
 
