@@ -203,25 +203,29 @@ def main(
     sources: List[Path] = []
 
     with TemporaryDirectory() as tmp_site_packages:
+        tmp_site_packages = Path(tmp_site_packages).absolute()
 
         # If both site_packages and pip_args are present, we need to copy the site_packages
         # dir into our staging area (tmp_site_packages) as pip may modify the contents.
         if site_packages:
             if pip_args:
                 for sp in site_packages:
-                    copytree(Path(sp), Path(tmp_site_packages))
+                    copytree(Path(sp), tmp_site_packages)
             else:
                 sources.extend([Path(p).expanduser() for p in site_packages])
 
         if pip_args:
             # Install dependencies into staged site-packages.
             pip.install(["--target", tmp_site_packages] + list(pip_args))
-            sources.append(Path(tmp_site_packages).absolute())
+            sources.append(tmp_site_packages)
 
         if preamble:
-            bin_dir = Path(tmp_site_packages, "bin")
+            preamble_fpath = Path(preamble).absolute()
+            bin_dir = tmp_site_packages / "bin"
             bin_dir.mkdir(exist_ok=True)
-            shutil.copy(Path(preamble).absolute(), bin_dir / Path(preamble).name)
+            shutil.copy(preamble_fpath, bin_dir / preamble_fpath.name)
+            if tmp_site_packages not in sources:
+                sources.append(tmp_site_packages)
 
         if no_modify:
             # if no_modify is specified, we need to build a map of source files and their
@@ -256,7 +260,7 @@ def main(
             shiv_version=__version__,
             no_modify=no_modify,
             reproducible=reproducible,
-            preamble=Path(preamble).name if preamble else None,
+            preamble=preamble_fpath.name if preamble else None,
         )
 
         if no_modify:
